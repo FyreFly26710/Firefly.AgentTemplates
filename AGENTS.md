@@ -8,33 +8,10 @@ GitHub issues define the requested work, and agents perform focused implementati
 ## Agent Modes
 
 - Pair-work mode: Dev works directly with an agent on Dev's machine. Dev coordinates the work in chat, and the agent must respond in chat as well as update GitHub.
+- Agent mode:
 
 Use the same issue modes for issue-driven work: `init`, `reinit`, `plan`, `code`, `pr`, and `merge`.
 Use GitHub issues and PRs as the durable task log.
-
-## GitHub Agent Bots
-
-Agents should use the matching GitHub App bot for GitHub issue and pull request updates when shared app credentials are available.
-If shared app credentials are not available, the helper falls back to the current authenticated `gh` user.
-
-- Codex uses `codex-coder`.
-- ClaudeCode uses `claudecode-coder`.
-
-Use the local helper wrapper:
-
-```bash
-./.agents/scripts/with-github-app.sh <agent-slug> -- gh <...>
-```
-
-Examples:
-
-```bash
-./.agents/scripts/with-github-app.sh codex-coder -- gh issue comment 123 --body "..."
-./.agents/scripts/with-github-app.sh claudecode-coder -- gh pr comment 123 --body "..."
-```
-
-Shared GitHub App files live beside project repositories at `../github-apps/<agent-slug>/`.
-For a layout like `Repo/<project>`, this resolves to `Repo/github-apps/<agent-slug>/`.
 
 ## Core Principles
 
@@ -59,15 +36,6 @@ For a layout like `Repo/<project>`, this resolves to `Repo/github-apps/<agent-sl
 ## Skill Naming Convention
 
 Skills live under `.agents/skills/<scope>-<skill-desc>/SKILL.md`.
-
-Use stable scope prefixes:
-
-- `common-` for workflow and repository-wide skills.
-- `frontend-` for general frontend work.
-- `web-` for web-client architecture and implementation.
-- `backend-` for server-side work.
-- `agent-` for local agent coordination workflows.
-
 Examples:
 
 - `common-documentation-lookup`
