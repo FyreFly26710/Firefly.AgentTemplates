@@ -9,7 +9,7 @@ GitHub issues define the requested work, and agents perform focused implementati
 
 - Pair-work mode: Dev works directly with an agent on Dev's machine. Dev coordinates the work in chat, and the agent must respond in chat as well as update GitHub.
 
-Use the same issue modes for issue-driven work: `init`, `reinit`, `plan`, `code`, and `merge`.
+Use the same issue modes for issue-driven work: `init`, `reinit`, `plan`, `code`, `pr`, and `merge`.
 Use GitHub issues and PRs as the durable task log.
 
 ## GitHub Agent Bots
@@ -91,7 +91,7 @@ For GitHub issue work:
 7. In pair-work mode, also respond clearly to Dev in chat.
 8. Run relevant checks before handing work back.
 9. Commit and push before ending any implementation chat.
-10. Prepare a focused PR tied to the source issue.
+10. Prepare a focused PR tied to the source issue when `pr` or `merge` mode requires it.
 
 Default issue delivery mode is `agent-only`.
 Use `co-op` only when Dev explicitly requests collaborative pair work.
@@ -103,8 +103,15 @@ The agent and Dev should use the same branch, worktree, issue comments, labels, 
 
 - Branch names should be `issue-<number>-<short-kebab-title>`.
 - Issue worktrees should live at `worktrees/<branch-name>` when worktrees are used.
+- At issue `init`, pull latest `main` after reading issue: `git checkout main && git pull --ff-only origin main`.
+- Before creating or updating a PR, fetch and merge latest `origin/main` into the issue branch, resolve conflicts if needed, validate again, and push.
+- Do not rebase by default unless Dev or local repository guidance explicitly requests it.
 - PR titles should be `<type>(<scope>): <description> (#<issue-number>)`.
 - PR bodies should include `Closes #<issue-number>` when the PR should close the issue.
+- In `pr` mode, create or update the PR and stop for Dev review.
+- In `merge` mode, merge the existing PR, or create the PR first when one does not exist.
+- All PR merges must use squash merge.
+- After a PR is merged, return to `main` and pull latest `main` again before cleanup or new issue work.
 - Use the source GitHub issue number as the canonical work item id.
 - Do not use the PR number as a substitute for the issue number.
 

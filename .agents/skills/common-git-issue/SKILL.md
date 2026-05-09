@@ -129,7 +129,8 @@ Dev or another trusted coordinator may trigger the agent with one of these modes
 - `reinit`: fetch full issue details and all comments, ensure labels, refresh the derived sections from `Dev Requirement` and comments, and do not code unless explicitly asked.
 - `plan`: write or update an implementation plan in the issue. Do not code.
 - `code`: implement the issue on the issue branch, validate, push, and prepare review.
-- `merge`: create or update the PR and merge only when the workflow and maintainer instruction allow it.
+- `pr`: create or update the PR, push the branch, mark the issue ready for review, and stop for Dev review.
+- `merge`: merge the existing PR, or create the PR first when one does not exist, then merge only when explicitly instructed.
 
 If the mode is missing, infer conservatively from the prompt and issue state.
 When unsure, do `init` or `plan`, not `code`.
@@ -167,6 +168,7 @@ Recommended mode-to-label behavior:
 - `reinit`: add `agent` and `agent-only`; remove `co-op`; preserve the current state label unless the issue becomes blocked.
 - `plan`: add `agent`, `agent-only`, and `in-progress`; remove `co-op`, `blocked`, and `ready-for-review`.
 - `code`: add `agent`, `agent-only`, and `in-progress`; remove `co-op`, `blocked`, and `ready-for-review`.
+- `pr`: add `agent`, `agent-only`, and `ready-for-review`; remove `co-op`, `in-progress`, and `blocked` after the PR is created or updated.
 - `merge`: add `agent` and `agent-only`; remove `co-op`; keep or set the state based on merge readiness.
 - explicit co-op request: add `agent` and `co-op`; remove `agent-only`; then apply the requested state label.
 - blocked in any mode: add `blocked`; remove `in-progress` and `ready-for-review`.
@@ -192,6 +194,13 @@ For implementation work, use:
 
 `issue-<number>-<short-kebab-title>`
 
+At `init`, start from the latest default branch before creating a branch or worktree:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+```
+
 Create or reuse a git worktree for issue work:
 
 ```bash
@@ -201,6 +210,8 @@ git worktree add worktrees/<branch-name> <branch-name>
 
 Work inside `worktrees/<branch-name>` for issue implementation.
 Commit and push before ending every implementation chat so Dev can review progress remotely.
+Before PR creation or update, fetch and merge the latest `origin/main` into the issue branch, resolve conflicts if needed, validate again, and push.
+Do not rebase by default unless repository-specific guidance or Dev explicitly requests it.
 
 Do not use PR numbers as work item ids.
 The issue number remains the canonical id.

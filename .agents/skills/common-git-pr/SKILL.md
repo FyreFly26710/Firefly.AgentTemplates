@@ -70,23 +70,47 @@ Use `Refs #<issue-number>` instead when the PR should not close the issue.
 ## Before Opening Or Updating A PR
 
 - Confirm the branch belongs to the source issue.
-- Confirm the branch is pushed.
+- Fetch latest `origin/main` and merge it into the issue branch before creating or updating the PR.
+- Resolve merge conflicts if needed, then rerun relevant validation.
+- Confirm the branch is pushed after the main merge and validation.
 - Confirm the PR is scoped to the issue.
 - Run relevant validation or explain why validation could not be run.
 - Summarize assumptions and risks.
 - Link back to the source issue.
+- Do not rebase by default unless repository-specific guidance or Dev explicitly requests it.
 
 Preferred commands:
 
 ```bash
 git -C worktrees/<branch> status --short
 git -C worktrees/<branch> branch --show-current
+git -C worktrees/<branch> fetch origin
+git -C worktrees/<branch> merge origin/main
 git -C worktrees/<branch> push -u origin <branch>
 ./.agents/scripts/with-github-app.sh <agent-slug> -- gh pr view --json number,title,body,state,url,headRefName,baseRefName,reviewDecision,statusCheckRollup
-./.agents/scripts/with-github-app.sh <agent-slug> -- gh pr create --draft --title "<type>(<scope>): <description> (#<issue-number>)" --body-file <body-file>
+./.agents/scripts/with-github-app.sh <agent-slug> -- gh pr create --title "<type>(<scope>): <description> (#<issue-number>)" --body-file <body-file>
 ./.agents/scripts/with-github-app.sh <agent-slug> -- gh pr edit <pr-number> --body-file <body-file>
 ./.agents/scripts/with-github-app.sh <agent-slug> -- gh pr checks <pr-number>
 ```
+
+## PR Mode
+
+Use `pr` mode when Dev wants the agent to prepare a pull request and wait for review.
+
+In `pr` mode:
+
+- fetch full issue details and all comments first
+- ensure issue labels are correct
+- create or reuse the issue branch and worktree
+- merge latest `origin/main` into the issue branch before the PR
+- run relevant validation
+- push the branch
+- create a non-draft PR if none exists, or update the existing PR
+- update the issue with the PR URL, validation result, and review status
+- set the issue to `ready-for-review`
+- stop without merging
+
+`pr` mode is optional. A later `merge` mode may create the PR if Dev skipped `pr`.
 
 ## Review Comments
 
@@ -103,13 +127,16 @@ Prefer wrapped `gh api graphql` for unresolved review threads because plain `gh 
 ## Merge Mode
 
 Only merge when explicitly instructed by the maintainer or by a trusted project workflow that carries maintainer approval.
+If a PR already exists, use that PR.
+If no PR exists, perform the PR preparation flow first, create the PR, then continue with merge.
 
 Before merge:
 
 - ensure checks are passing or explicitly accepted
 - ensure the PR still matches the source issue
 - ensure the issue has a final status comment
-- prefer squash merge unless the project docs say otherwise
+- ensure latest `origin/main` has been merged into the issue branch before the PR is merged
+- use squash merge for every PR merge
 
 Preferred command:
 
@@ -121,6 +148,7 @@ After merge, clean up from the main repo:
 
 ```bash
 git checkout main
+git pull --ff-only origin main
 git fetch --prune
 git worktree remove worktrees/<branch>
 git branch -D <branch>
