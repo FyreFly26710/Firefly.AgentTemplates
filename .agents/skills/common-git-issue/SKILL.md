@@ -157,8 +157,8 @@ When labels are available, keep these aligned:
 
 - always keep `agent` on agent-assisted issues
 - optionally keep a runtime label such as `codex` or `claudecode` when the repository uses runtime-specific labels
-- default to `agent-only` for agent-assisted issues
-- use `co-op` only when Dev explicitly requests collaborative pair work
+- default to `agent-only` for agent-only work
+- use `co-op` only when Dev explicitly requests pair-work mode
 - keep `agent-only` and `co-op` mutually exclusive
 - use exactly one current state label: `in-progress`, `blocked`, or `ready-for-review`
 
@@ -175,6 +175,10 @@ Recommended mode-to-label behavior:
 - ready for review: add `ready-for-review`; remove `in-progress` and `blocked`.
 
 If label operations fail, continue and mention the failure in the issue status comment or final summary.
+
+Agent-only runs must not ask clarification questions in chat or coordinator responses.
+When blocked, write the question or blocker as a GitHub issue comment, label the issue `blocked`, and stop.
+Pair-work runs may ask Dev clarifying questions in chat, but must still write durable decisions and status to GitHub.
 
 Preferred commands:
 
@@ -224,8 +228,10 @@ In pair-work mode:
 
 - Dev provides the project, issue number, and mode directly in chat.
 - The agent still fetches full issue details and all comments first.
+- The agent labels the issue with `agent` and `co-op`, and removes `agent-only`.
 - The agent still updates labels, issue body, comments, branch, worktree, commits, pushes, and PRs.
-- The agent also responds in chat with concise progress and blockers.
+- The agent may ask clarifying questions in chat when needed.
+- The agent also responds in chat with concise progress, blockers, validation, and next actions.
 - GitHub remains the durable source of truth, while chat is the immediate collaboration channel.
 
 ## Blocking Rules

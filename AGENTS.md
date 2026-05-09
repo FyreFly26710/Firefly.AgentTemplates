@@ -7,8 +7,21 @@ GitHub issues define the requested work, and agents perform focused implementati
 
 ## Agent Modes
 
-- Agent-only mode: default mode for issue-driven delivery. Dev creates or updates the GitHub issue, then the agent works from GitHub as the source of truth. The agent reads the full issue and all comments, keeps labels and issue sections updated, creates or continues the issue branch/worktree, commits and pushes changes, and uses `pr` or `merge` mode when Dev requests review or completion. Dev reviews through GitHub and gives follow-up instructions through issue comments or a new trigger.
-- Pair-work mode: Dev works directly with an agent on Dev's machine. Dev coordinates the work in chat, and the agent must respond in chat as well as update GitHub.
+### Agent-only mode
+Agent-only mode is the default mode for issue-driven delivery.
+Dev works remotely, away from the agent.
+Communication happens through OpenClaw and GitHub issue comments.
+The agent must not ask questions in chat responses.
+If clarification is required, the agent must write the question or blocker as a GitHub issue comment, set the issue state to blocked, and stop.
+All code changes must be committed on the issue branch and pushed to GitHub before the agent ends an implementation run.
+The GitHub issue must be labeled clearly with `agent` and `agent-only`.
+Dev reviews through GitHub and gives follow-up instructions through issue comments or a new OpenClaw trigger.
+
+### Pair-work mode
+Pair-work mode is for complex issues where Dev decides to work directly with an agent on Dev's machine.
+Dev coordinates the work in chat, and the agent may ask clarifying questions in chat while still keeping GitHub updated.
+The GitHub issue must be labeled clearly with `agent` and `co-op`, and must not keep `agent-only`.
+Pair-work mode follows the `agent-pair-work-flow` skill.
 
 Use the same issue modes for issue-driven work: `init`, `reinit`, `plan`, `code`, `pr`, and `merge`.
 Use GitHub issues and PRs as the durable task log.
