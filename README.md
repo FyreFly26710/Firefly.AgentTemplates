@@ -1,23 +1,25 @@
 # Firefly Agent Templates
 
-This repository is a starter template for projects that use GitHub issues, OpenClaw, and Codex together.
+This repository is a starter template for projects that use GitHub issues and agent-assisted development.
 
 ## Intent
 
 - Keep project-specific guidance close to the code.
 - Keep reusable agent workflow skills in `.agents/skills`.
 - Use GitHub issues as the source of truth for task scope.
-- Let OpenClaw coordinate notifications and Codex session continuity.
-- Let Codex implement focused issue branches and prepare pull requests.
+- Let Dev coordinate directly with Codex or ClaudeCode in pair-work mode.
+- Let agents implement focused issue branches and prepare pull requests.
+- Keep `docs/` project-facing, like PRD, architecture, and development planning docs.
 
 ## Structure
 
 - `AGENTS.md` contains generic repository guidance.
 - `.agents/skills/` contains reusable workflow skills.
-- `.github/` contains issue and pull request templates.
+- `.github/` contains the pull request template.
+- `.agents/scripts/` contains GitHub App helper wrappers for agent bot identity, with fallback to the current `gh` user when app credentials are missing.
 - `src/client/web/AGENTS.md` is the placeholder for web-specific guidance.
 - `src/server/AGENTS.md` is the placeholder for backend-specific guidance.
-- `docs/agent-flow/` documents the issue-to-session workflow contract.
+- `docs/` contains project-facing product, architecture, and development planning docs.
 
 ## Project Setup
 
@@ -27,5 +29,5 @@ After creating a new project from this template:
 2. Fill in `src/client/web/AGENTS.md` with the chosen frontend stack.
 3. Fill in `src/server/AGENTS.md` with the chosen backend stack.
 4. Add product docs and architecture docs under `docs/`.
-5. Configure OpenClaw with the repository path, GitHub repo, and Codex session mapping store.
-
+5. Optionally configure shared GitHub App files under `../github-apps/<agent-slug>/`.
+6. Create GitHub issues freely. Title-only issues are valid; `init` will structure the issue body.
