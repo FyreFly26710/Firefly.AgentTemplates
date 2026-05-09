@@ -38,6 +38,7 @@ Pair-work mode uses the standard issue modes:
 - `reinit`
 - `plan`
 - `code`
+- `pr`
 - `merge`
 
 Every mode starts by fetching full issue details and all comments, then reconciling labels.

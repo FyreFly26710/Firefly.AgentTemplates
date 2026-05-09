@@ -1,233 +1,157 @@
 ---
 name: frontend-patterns
-description: Firefly Signal frontend development patterns for apps/web. Covers folder structure, component composition, TanStack Query data fetching, Zustand state, form handling, and coding conventions specific to this repo.
+description: Default React frontend implementation patterns for template projects. Use when adding, changing, or reviewing web client code under src/client/web, including folder structure, TanStack Query, Zustand, routing, HTTP, forms, and styling.
 ---
 
-# Frontend Patterns — Firefly Signal
+# Frontend Patterns
 
-This skill defines the frontend implementation patterns for `apps/web`. It replaces generic React advice with Firefly-specific conventions. Follow this whenever you are adding, changing, or reviewing frontend code.
+Use this skill for web client work under `src/client/web/`.
+These are default project conventions; more specific local `AGENTS.md` files or existing code patterns win when they conflict.
+
+## Default Stack
+
+- React with TypeScript
+- Vite for local development and builds
+- React Router for route definitions unless the project has already chosen another router
+- TanStack Query for server state
+- Zustand for small client-owned global state
+- Tailwind CSS for layout, spacing, typography, and design tokens
+- Existing component libraries for accessible controls when already installed
+- Vitest and Testing Library for unit/component tests
+- Playwright for browser-level smoke and critical flows
 
 ## Folder Structure
 
-```
-apps/web/src/
-  api/                      ← HTTP transport layer — one folder per backend resource
-    auth/                   ← auth.api.ts, auth.types.ts
-    jobs/                   ← jobs.api.ts, jobs.types.ts
-    job-search/             ← job-search.api.ts, user-job-state.api.ts
-    profile/                ← profile.api.ts, profile.types.ts
-  app/                      ← App bootstrap: AppRoot, AppProviders, AppRouter, RouteLoadingScreen, theme
-  components/               ← Shared pure UI: AppHeader, SearchInput, SectionCard
-  features/                 ← Feature modules — primary code boundary
-    auth/
-      components/           ← Route guards (ProtectedRoute, AdminRoute), form components
-      store/                ← session.store.ts — Zustand store for auth session
-      views/                ← LoginView
-    jobs/
-      components/           ← Job cards, panels, editor sections
-      hooks/                ← useJobDetail — TanStack Query data hooks
-      mappers/              ← Response → view model mappers
-      types/                ← Feature-specific TypeScript types
-      views/                ← JobDetailView, JobsListView, ManageJobView
-    profile/
-      views/                ← ProfileView
-    search/
-      components/           ← SearchForm, SearchResults, SearchResultsToolbar
-      hooks/                ← useJobSearch (TanStack Query), useJobState (optimistic)
-      lib/                  ← search-query.ts — pure URL/criteria helpers
-      mappers/              ← search.mappers.ts — response → view model
-      types/                ← search.types.ts
-      views/                ← SearchLandingView, SearchResultsView
-    workspace/
-      components/           ← Workspace panels and cards
-      views/                ← WorkspaceView
-  lib/
-    async/                  ← useAsyncTask (for mutation-style imperatives), async-state
-    auth/                   ← session-storage helpers
-    http/                   ← fetch client (client.ts), ApiError
-    env.ts                  ← VITE_ environment variable access
-  routes/                   ← Thin route wrappers — extract URL params, render the view
-  test/
-    render.tsx              ← renderWithProviders, renderHookWithProviders
-    setupTests.ts           ← @testing-library/jest-dom setup
+Prefer this shape for new projects:
+
+```text
+src/client/web/
+  src/
+    api/                    # HTTP transport layer, one folder per backend resource
+      <resource>/
+        <resource>.api.ts
+        <resource>.types.ts
+    app/                    # App bootstrap, providers, router, theme
+    components/             # Shared pure UI that no single feature owns
+    features/               # Primary frontend code boundary
+      <feature>/
+        components/
+        hooks/
+        lib/
+        mappers/
+        store/
+        types/
+        views/
+    lib/
+      async/
+      auth/
+      http/
+      env.ts
+    routes/                 # Thin route wrappers
+    test/
+      render.tsx
+      setupTests.ts
+  tests/
+    e2e/
 ```
 
-### Rules
+## Boundary Rules
 
-- Feature code belongs inside its feature folder. Do not reach across features.
+- Feature code belongs inside the feature folder that owns it.
 - `src/api/` is the HTTP transport layer. API functions return raw DTOs.
-- `src/routes/` files are thin — they extract URL params and render one feature view. No logic.
-- `src/components/` is for shared UI that no single feature owns.
-- `src/lib/` is for framework-agnostic utilities (no business logic).
-- Zustand stores belong colocated with the feature that owns them (`features/auth/store/`).
+- Views do not call `src/api/` directly; wrap reads in feature hooks.
+- `src/routes/` files are thin. They parse route params and render feature views.
+- `src/components/` is for shared UI only.
+- `src/lib/` is for framework helpers and cross-feature utilities, not business feature logic.
+- Zustand stores should stay close to the feature that owns them unless the state is truly app-wide.
 
-## Data Fetching — TanStack Query
+## Data Fetching
 
-Use TanStack Query for all server-state reads. Do not reach directly from a view into `src/api/` for queries — wrap them in a feature hook first.
-
-### Query hook pattern
+Use TanStack Query for server-state reads.
 
 ```typescript
-// src/features/jobs/hooks/useJobDetail.ts
 import { useQuery } from "@tanstack/react-query";
-import { getJobById } from "@/api/jobs/jobs.api";
-import { mapJobDetail } from "@/features/jobs/mappers/job-detail.mappers";
+import { getProductById } from "@/api/products/products.api";
+import { mapProductDetail } from "@/features/products/mappers/product-detail.mappers";
 
-export function useJobDetail(jobId: number | null) {
+export function useProductDetail(productId: number | null) {
   return useQuery({
-    queryKey: ["jobs", jobId],
-    queryFn: () => getJobById(jobId!).then(mapJobDetail),
-    enabled: jobId !== null
+    queryKey: ["products", productId],
+    queryFn: () => getProductById(productId!).then(mapProductDetail),
+    enabled: productId !== null
   });
 }
 ```
 
-### View consuming a query hook
+Query keys must be stable and serializable:
 
 ```typescript
-// src/features/jobs/views/JobDetailView.tsx
-export function JobDetailView({ jobId }: { jobId: string | undefined }) {
-  const numericId = jobId && !Number.isNaN(Number(jobId)) ? Number(jobId) : null;
-  const { data, isPending, isError, error } = useJobDetail(numericId);
-
-  if (numericId === null) return <JobDetailNotFound />;
-
-  return (
-    <>
-      {isPending && <LoadingPanel />}
-      {isError && <Alert severity="error">{error.message}</Alert>}
-      {data && <JobDetailHeroCard job={data} />}
-    </>
-  );
-}
+queryKey: ["products", productId]
+queryKey: ["products", "list", { search, pageIndex, pageSize }]
+queryKey: ["account", "current"]
 ```
 
-### Query key conventions
+## State Management
 
-Stable, serialisable query keys:
-
-```typescript
-queryKey: ["jobs", jobId]                              // single entity
-queryKey: ["job-search", { keyword, postcode, pageIndex, pageSize }]  // parameterised list
-queryKey: ["profile", "current"]                       // current-user scoped
-```
-
-### QueryClient setup
-
-- Production client lives in `src/app/AppRoot.tsx` with `staleTime: 30_000` and `retry: 1`.
-- Test clients live in `src/test/render.tsx` via `createTestQueryClient()` with `retry: false` and `staleTime: 0`.
-- `AppProviders` does NOT own a `QueryClient` — it handles session hydration + MUI theme only.
-- This separation ensures test `QueryClient` settings are not overridden by production defaults.
-
-## State Management — Zustand
-
-Use Zustand for client-owned global state (auth session, UI state that spans multiple routes). Do not put server state in Zustand — that belongs in TanStack Query.
+Use Zustand for client-owned state such as session state, feature UI state that spans routes, or local workflow state.
+Do not put server data in Zustand; use TanStack Query for entities, lists, loading, cache, and refetching.
 
 ```typescript
-// src/features/auth/store/session.store.ts
 export const useSessionStore = create<SessionStore>((set) => ({
   user: null,
   isAuthenticated: false,
-  signIn: async ({ userAccount, password }) => { ... },
-  signOut: () => { ... },
-  hydrate: async () => { ... }
+  signIn: async (credentials) => { /* ... */ },
+  signOut: () => set({ user: null, isAuthenticated: false })
 }));
 ```
 
-## Mutations — useAsyncTask
+## Mutations And Forms
 
-For write operations (form submits, imports, deletes) that are not reads, use `useAsyncTask` from `src/lib/async/useAsyncTask.ts`. It handles race conditions, loading state, and error capture.
-
-```typescript
-const { status, errorMessage, execute } = useAsyncTask(submitProfile);
-```
-
-Do not use `useAsyncTask` for data queries — use TanStack Query instead.
+- Prefer TanStack Query mutations for writes that affect server state and cache invalidation.
+- A local `useAsyncTask` helper is acceptable for one-off imperative tasks if the project already has one.
+- Keep form state local unless multiple routes or components must share it.
+- Keep transport DTOs separate from view models and form models.
 
 ## Route Modules
 
-Route files in `src/routes/` extract URL params and render one view. Nothing else.
+Route files should extract route params and render one feature view.
 
 ```typescript
-// src/routes/AppJobDetailPage.tsx
 import { useParams } from "react-router-dom";
-import { ManageJobView } from "@/features/jobs/views/ManageJobView";
+import { ProductDetailView } from "@/features/products/views/ProductDetailView";
 
-export function AppJobDetailPage() {
-  const { jobId } = useParams<{ jobId: string }>();
-  return <ManageJobView jobId={jobId} />;
+export function ProductDetailPage() {
+  const { productId } = useParams<{ productId: string }>();
+  return <ProductDetailView productId={productId} />;
 }
-```
-
-## Component Composition
-
-Prefer composition. Views are assembled from smaller, single-responsibility components.
-
-```typescript
-// Good: composed from focused pieces
-export function JobDetailView({ jobId }) {
-  const { data } = useJobDetail(numericId);
-  return (
-    <>
-      <JobDetailHeroCard job={data} />
-      <JobDetailContentPanel title="About the role">
-        {paragraphs.map(p => <p key={p}>{p}</p>)}
-      </JobDetailContentPanel>
-    </>
-  );
-}
-```
-
-## Lazy Loading
-
-Pages are lazy-loaded in `AppRouter`. Wrap each lazy page with `Suspense` via the `withRouteFallback` helper already in `src/app/AppRouter.tsx`.
-
-```typescript
-const JobDetailPage = lazy(() =>
-  import("@/routes/JobDetailPage").then((m) => ({ default: m.JobDetailPage }))
-);
-
-{ path: "/jobs/:jobId", element: withRouteFallback(<JobDetailPage />) }
 ```
 
 ## HTTP Client
 
-Use the typed helpers in `src/lib/http/client.ts` for all API calls. Do not use raw `fetch` in feature code.
+Use the project HTTP client in `src/lib/http/` for all API calls.
+Do not use raw `fetch` in feature code unless the project has not created an HTTP client yet.
 
 ```typescript
-import { getJson, postJson, putJson, deleteRequest } from "@/lib/http/client";
+import { getJson } from "@/lib/http/client";
 
-export async function getJobById(id: number): Promise<JobDetailResponseDto> {
-  return getJson<JobDetailResponseDto>(`/api/jobs/${id}`);
+export async function getProductById(id: number): Promise<ProductDetailResponseDto> {
+  return getJson<ProductDetailResponseDto>(`/api/products/${id}`);
 }
 ```
 
-The client automatically:
-- attaches the `Authorization: Bearer` header from session storage
-- throws `ApiError` with `status` and `message` on non-OK responses
-- handles `Content-Type: application/json` for JSON bodies
-
-## Error Handling
-
-`ApiError` from `src/lib/http/api-error.ts` carries the HTTP status code. Check it in views to distinguish 404 from other failures.
-
-```typescript
-const isNotFound = isError && error instanceof ApiError && error.status === 404;
-```
+The HTTP client should own auth headers, JSON content handling, and typed API errors.
 
 ## Styling
 
-The app uses Tailwind CSS (v4) for layout and custom design tokens, and MUI v7 for form controls and feedback components (Alert, TextField, Button, etc.).
-
-- Use Tailwind for layout, spacing, typography, and colour tokens.
-- Use MUI for interactive form controls and feedback elements.
-- Do not mix class-based styling with MUI's `sx` prop for the same concern.
+- Use Tailwind CSS for layout, spacing, typography, responsive behavior, and design tokens.
+- Use the project component library for accessible controls when it exists.
+- Avoid mixing multiple styling systems for the same concern.
+- Keep view files readable; extract repeated UI into components when it clarifies ownership.
 
 ## What Not To Do
 
-- Do not call `src/api/` directly from a view — go through a feature hook.
-- Do not add `axios` — the fetch client already handles auth, errors, and all HTTP verbs.
-- Do not use Suspense for data fetching with `use()` — TanStack Query handles loading/error states more cleanly and is easier to test.
-- Do not put server state (lists, entities) into Zustand.
-- Do not put route params, loading state, or business logic inside `src/routes/`.
-- Do not create a new provider setup in test files — use `renderWithProviders`.
+- Do not call API transport functions directly from views.
+- Do not add Axios when the project already has a typed HTTP client.
+- Do not put server state into Zustand.
+- Do not hide route parsing, data fetching, and large mapping logic in route files.
+- Do not create one-off provider setups in tests; use the shared test render helper.

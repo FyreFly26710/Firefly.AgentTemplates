@@ -1,304 +1,113 @@
 ---
 name: backend-tdd-workflow
-description: Use this skill when writing backend features, fixing backend bugs, or refactoring code under services/api. Enforces Firefly Signal's backend TDD workflow with UnitTests and FunctionalTests aligned to the repo's clean-architecture boundaries.
+description: Default backend TDD workflow for .NET services under src/server. Use when writing backend features, fixing backend bugs, refactoring application logic, or adding unit and functional tests.
 ---
 
 # Backend TDD Workflow
 
-This skill defines the backend testing workflow for Firefly Signal under `services/api/`.
+Use this skill with `backend-patterns` when backend behavior changes.
 
-Use it together with `backend-patterns` when changing backend behavior.
+## Testing Defaults
 
-## When to Activate
-
-- Writing new backend features or endpoints in `services/api`
-- Fixing backend bugs
-- Refactoring backend behavior
-- Changing command handlers, query classes, domain entities, or endpoint contracts
-- Adding backend tests or expanding existing backend coverage
-
-## Firefly Rules
-
-### 1. Tests Before Code
-
-Always start with a failing test at the lowest layer that owns the behavior.
+Start with a failing test at the lowest layer that owns the behavior.
 
 Use:
 
-- `*.UnitTests` for pure domain rules and pure helper logic
-- `*.FunctionalTests` for command handlers, query classes, and HTTP endpoint behavior
+- Unit tests for domain rules, pure helpers, pure mappers, and deterministic support logic
+- Functional tests for command handlers, query services, endpoint behavior, route binding, auth, persistence, validation, and problem-details responses
 
-### 2. Follow The Existing Repo Split
+Do not add a third test layer such as `IntegrationTests` by default unless the project already uses it or the issue explicitly needs it.
 
-The backend standard is:
+## Default Test Layout
 
-- `services/api/tests/Firefly.Signal.<Feature>.UnitTests`
-- `services/api/tests/Firefly.Signal.<Feature>.FunctionalTests`
+Prefer this shape for new services:
 
-Do not add a third backend test layer such as `IntegrationTests` in normal feature work unless the task explicitly requires it.
+```text
+src/server/
+  <Feature>.Api/
+  tests/
+    <Feature>.UnitTests/
+    <Feature>.FunctionalTests/
+```
 
-### 3. Coverage Means Behavior, Not Metrics Theater
+If an existing project uses a different naming convention, follow the existing convention.
 
-The repo does not currently standardize on a numeric backend coverage threshold.
-Do not invent one in implementation tasks.
+## Workflow
 
-Instead, ensure coverage is meaningful:
+1. State the behavior being changed.
+2. Pick the lowest owning layer.
+3. Write the failing test first when practical.
+4. Run the narrowest test command.
+5. Implement the minimum passing code.
+6. Refactor with tests green.
+7. Run the relevant service or solution tests before handoff.
 
-- happy path
-- relevant edge cases
-- expected error paths
-- transport/auth behavior when HTTP is part of the change
+## Unit Tests
 
-### 4. Test Real Ownership Boundaries
+Use unit tests for:
 
-Place tests where the logic actually lives:
-
-- Domain normalization and invariants: `UnitTests`
-- Command and query behavior: `FunctionalTests`
-- Route binding, auth, status codes, validation, and problem-details behavior: API `FunctionalTests`
-
-## Firefly Backend Test Types
-
-### Unit Tests
-
-Use for:
-
-- domain entities such as `UserProfile`, `JobApplication`, `UserAccount`
+- domain entities and value objects
 - pure mappers
 - pure validation helpers
 - deterministic support logic with no app host
 
-Do not:
+Avoid booting the web host, using EF Core, or mocking HTTP in unit tests for simple domain behavior.
 
-- boot the web host
-- mock through HTTP
-- involve EF Core for simple domain behavior
+## Functional Tests
 
-### Functional Tests
+Use functional tests for:
 
-Use for:
+- command handlers
+- query services
+- endpoint status codes and response bodies
+- persistence behavior
+- auth and current-user behavior
+- problem-details mapping
 
-- MediatR command handlers
-- query classes
-- endpoint behavior
-- auth behavior
-- exception-to-problem-details behavior
-- persistence-backed workflows
+Functional tests may use a test app factory, in-memory or SQLite database, and test doubles for external providers.
+Do not call real third-party services from automated tests.
 
-Default patterns in this repo:
+## Commands
 
-- relational functional tests can use small SQLite harnesses when persistence semantics matter
-- HTTP tests use `WebApplicationFactory<Program>` with the service's `Testing` environment
-- service-owned fixtures stay local to `services/api/tests`
-
-## TDD Workflow
-
-### Step 1: State The Backend Behavior
-
-Describe the behavior in one or two sentences before coding.
-
-Examples:
-
-- "As an authenticated user, I can advance an application status so the next workflow stage is persisted."
-- "As a signed-in user, I can upsert my profile so later job-review flows use the latest profile context."
-
-### Step 2: Choose The Lowest Owning Layer
-
-Pick the first failing test target with this rule:
-
-1. If the behavior is pure domain logic, start in `UnitTests`.
-2. If the behavior is a use case in a handler or query, start in `FunctionalTests`.
-3. If the change affects request binding, auth, validation, or response shape, add an API functional test.
-
-### Step 3: Write The Failing Test
-
-Write the smallest failing test that proves the missing behavior.
-
-Examples already in the repo:
-
-- `services/api/tests/Firefly.Signal.JobSearch.UnitTests/Domain/JobApplicationTests.cs`
-- `services/api/tests/Firefly.Signal.JobSearch.FunctionalTests/Application/AdvanceApplicationStatusCommandHandlerTests.cs`
-- `services/api/tests/Firefly.Signal.Identity.FunctionalTests/Api/AuthApiTests.cs`
-
-### Step 4: Run The Smallest Relevant Test Command
-
-Prefer targeted commands while iterating:
+Use project-specific commands when available. Common examples:
 
 ```bash
-dotnet test services/api/tests/Firefly.Signal.JobSearch.UnitTests/Firefly.Signal.JobSearch.UnitTests.csproj
-dotnet test services/api/tests/Firefly.Signal.Identity.FunctionalTests/Firefly.Signal.Identity.FunctionalTests.csproj
+dotnet test src/server/tests/<Feature>.UnitTests/<Feature>.UnitTests.csproj
+dotnet test src/server/tests/<Feature>.FunctionalTests/<Feature>.FunctionalTests.csproj
+dotnet test src/server/<Project>.sln
 ```
 
-The first run should fail for the new behavior.
+## Test Quality Rules
 
-### Step 5: Implement The Smallest Passing Change
+- Test behavior and contracts, not private implementation details.
+- Cover happy path, important edge cases, and expected error paths.
+- Include transport/auth behavior when HTTP behavior changes.
+- Keep fixtures close to the service that owns them unless reuse is real.
+- Do not invent numeric coverage thresholds unless the project defines them.
 
-Add only the code needed to make the new test pass.
-
-Follow `backend-patterns`:
-
-- keep `Program.cs` thin
-- keep writes in command handlers
-- keep reads in query classes
-- keep mapping explicit
-- keep domain behavior on entities when it is truly domain behavior
-
-### Step 6: Re-Run Focused Tests, Then Refactor
-
-Once the targeted test is green:
-
-- remove duplication
-- improve naming
-- simplify helpers
-- keep the tests green throughout
-
-### Step 7: Verify The Service Slice
-
-Before finishing backend work, run the relevant project or solution tests:
-
-```bash
-dotnet test services/api/Firefly.Signal.Api.slnx
-```
-
-If the task only touched one service and the full solution run is unnecessarily heavy, explain what narrower test command you ran instead.
-
-## Test Placement Rules
-
-### Put In UnitTests
-
-- note trimming
-- postcode normalization
-- role/default normalization
-- guard behavior on domain entities
-- pure mapper behavior
-
-### Put In FunctionalTests/Application
-
-- handler creates vs updates
-- query ordering and filtering
-- persistence-backed state transitions
-- command/query null vs exception behavior
-
-### Put In FunctionalTests/Api
-
-- `401`, `404`, `400`, `409`, `200`, `201`, `204` outcomes
-- auth-required flows
-- request contract validation
-- explicit route and body binding
-- problem-details responses
-
-## Patterns To Follow
-
-### Domain Unit Test Pattern
+## Example Unit Test Shape
 
 ```csharp
 [TestMethod]
-public void Create_NormalizesPostcode()
+public void Rename_RejectsEmptyName()
 {
-    var profile = UserProfile.Create(
-        userAccountId: 42,
-        fullName: "Alex Example",
-        preferredTitle: null,
-        primaryLocationPostcode: " sw1a 1aa ",
-        linkedInUrl: null,
-        githubUrl: null,
-        portfolioUrl: null,
-        summary: null,
-        skillsText: null,
-        experienceText: null,
-        preferencesJson: " ");
+    var entity = Product.Create("Original");
 
-    Assert.AreEqual("SW1A 1AA", profile.PrimaryLocationPostcode);
-    Assert.AreEqual("{}", profile.PreferencesJson);
+    Assert.ThrowsException<ArgumentException>(() => entity.Rename(""));
 }
 ```
 
-### Handler Functional Test Pattern
+## Example Functional Test Shape
 
 ```csharp
 [TestMethod]
-public async Task Handle_WhenProfileExists_UpdatesExistingProfile()
+public async Task GetProduct_ReturnsNotFoundForMissingProduct()
 {
-    await using var database = new IdentitySqliteTestDatabase();
-    await using var dbContext = database.CreateDbContext();
-
-    var user = IdentityTestData.CreateUser();
-    dbContext.Users.Add(user);
-    await dbContext.SaveChangesAsync();
-
-    var handler = new UpsertUserProfileCommandHandler(dbContext);
-
-    var result = await handler.Handle(
-        new UpsertUserProfileCommand(
-            UserId: user.Id,
-            FullName: "New Name",
-            PreferredTitle: "Staff Engineer",
-            PrimaryLocationPostcode: "ec1a 1bb",
-            LinkedInUrl: null,
-            GithubUrl: null,
-            PortfolioUrl: null,
-            Summary: "Updated",
-            SkillsText: "Updated",
-            ExperienceText: "Updated",
-            PreferencesJson: "{\"remote\":true}"),
-        CancellationToken.None);
-
-    Assert.IsNotNull(result);
-    Assert.IsFalse(result.Created);
-}
-```
-
-### API Functional Test Pattern
-
-```csharp
-[TestMethod]
-public async Task GetCurrent_WhenUnauthenticated_ReturnsUnauthorized()
-{
-    using var factory = new IdentityApiFactory();
+    await using var factory = new ProductApiFactory();
     using var client = factory.CreateClient();
 
-    var response = await client.GetAsync("/api/users/profile");
+    var response = await client.GetAsync("/api/products/999");
 
-    Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+    Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
 }
 ```
-
-## What Not To Do
-
-- Do not mock `DbContext`.
-- Do not mock MediatR just to test endpoint behavior.
-- Do not add tests for thin `Program.cs`.
-- Do not create endpoint-only tests for business rules that belong to domain or application code.
-- Do not introduce broad custom test frameworks when a small local factory or fixture will do.
-- Do not claim TDD if the tests were added only after the implementation was already complete.
-
-## Backend-Specific Mistakes To Avoid
-
-### Wrong: Testing EF Queries With Fake Lists
-
-Avoid replacing query behavior with LINQ-to-objects when the behavior depends on EF translation, ordering, or relational persistence.
-
-### Right: Use A Small Relational Harness
-
-Use the service-local SQLite harness pattern when persistence semantics matter.
-
-### Wrong: Only Testing The Happy Path
-
-Do not stop at the `200` or `201` path.
-If the endpoint owns auth or validation behavior, cover the relevant `401`, `400`, `404`, or `409` outcomes too.
-
-### Right: Match The Contract Surface
-
-For API tests, assert the status code and the response contract fields that matter to callers.
-
-## Success Criteria
-
-Backend work is done when:
-
-- the first test was written before the behavior change
-- the test sits at the correct ownership layer
-- the changed behavior is covered by focused tests
-- relevant service or solution test commands pass
-- the implementation still follows Firefly's backend structure
-
-Tests are a delivery tool, not a formality. In this repo, good backend TDD means small red-green-refactor loops with tests placed exactly where the architecture says the behavior belongs.

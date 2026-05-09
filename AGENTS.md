@@ -13,6 +13,14 @@ GitHub issues define the requested work, and agents perform focused implementati
 Use the same issue modes for issue-driven work: `init`, `reinit`, `plan`, `code`, `pr`, and `merge`.
 Use GitHub issues and PRs as the durable task log.
 
+## Default Tech Stack
+
+Use this stack for new projects unless the project issue, docs, or local `AGENTS.md` chooses a different stack:
+
+- Web client: React, TypeScript, Vite, TanStack Query, Zustand when client-owned global state is needed, Tailwind CSS, Vitest, Testing Library, and Playwright.
+- Backend: .NET, ASP.NET Core, EF Core when persistence is relational, MediatR for write commands, Problem Details, OpenAPI, unit tests, and functional tests.
+- Repository layout: web client under `src/client/web/`, backend under `src/server/`, shared project docs under `docs/`.
+
 ## Core Principles
 
 - Treat the GitHub issue as the source of truth for issue-driven work.
@@ -41,9 +49,12 @@ Examples:
 - `common-documentation-lookup`
 - `common-git-issue`
 - `common-git-pr`
-- `frontend-ui-design`
-- `web-architecture`
-- `backend-tdd`
+- `frontend-design`
+- `frontend-patterns`
+- `frontend-tdd-workflow`
+- `frontend-e2e-testing`
+- `backend-patterns`
+- `backend-tdd-workflow`
 - `agent-pair-work-flow`
 
 ## Issue-Driven Workflow
